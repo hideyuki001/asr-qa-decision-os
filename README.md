@@ -1,12 +1,11 @@
-# ASR QA Decision OS v0.1
-
 ASR QA is not annotation — it's a decision system.
 
 ASR QA often suffers from inconsistent human judgment and hidden inference.  
 This system eliminates both.
 
 A deterministic system where the same input produces the same judgment outcome.  
-This repository transforms subjective human QA into a structured, traceable, and auditable process.
+
+👉 This system is policy-agnostic and can be adapted to different ASR guidelines.
 
 ---
 
