@@ -32,7 +32,7 @@ Instead of relying on human intuition, this system enforces:
 
 The full decision logic is defined here:
 
-👉 [`/rules/asr_qa_decision_os.yaml`](./rules/asr_qa_decision_os.yaml)
+👉 [`asr_qa_decision_os.yaml`](./asr_qa_decision_os.yaml)
 
 This is not configuration.  
 This is not a guideline.  
