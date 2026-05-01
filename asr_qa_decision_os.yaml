@@ -1,1 +1,254 @@
+asr_qa_decision_os:
+  version: 0.1
+  date: 2026-05-01
 
+  philosophy:
+    - "音声確定性を最優先する"
+    - "推測は禁止、証拠による復元は許可"
+    - "判断はスロット単位で行う"
+
+# =========================
+# RULES
+# =========================
+
+rules:
+
+  - rule_id: RF-01
+    name: Overlap Requires Semantic Simultaneity
+    priority: S
+    condition:
+      physical_overlap: true
+      semantic_simultaneity: false
+    action:
+      overlap: reject
+      output: separate_segments
+    controller:
+      if_triggered: ALLOW_WITH_UI_ADJUSTMENT
+    pl:
+      jp: "物理的被りではなく意味同時性でoverlapを決定する"
+      en: "Overlap must be determined by semantic simultaneity, not physical overlap"
+
+  - rule_id: RF-02
+    name: No Inference (Global Principle)
+    priority: S+
+    scope: "global principle: no unsupported inference"
+    condition:
+      certainty: false
+      inferred_from_context: true
+    action:
+      output: unintelligible
+    controller:
+      if_triggered: STOP
+    pl:
+      jp: "聞こえない語は文脈で補完しない"
+      en: "Unheard tokens must not be reconstructed from context"
+
+  - rule_id: RF-03
+    name: Slot-Level Certainty Gate
+    priority: S+
+    scope: "local operational gate: slot-level certainty required"
+    condition:
+      global_context_natural: true
+      local_certainty: false
+    action:
+      output: unintelligible_partial
+    controller:
+      if_triggered: DEFER
+    pl:
+      jp: "通しで自然でもスロットで確定できなければ書かない"
+      en: "Even if globally natural, do not output unless locally certain"
+
+  - rule_id: RF-04
+    name: Particle Mutation Risk
+    priority: S+
+    condition:
+      particle_changed: true
+      meaning_changed: true
+    action:
+      restore_structure: true
+      output: unintelligible_if_needed
+    controller:
+      if_triggered: STOP
+    pl:
+      jp: "助詞を変えた瞬間、それは補完になる"
+      en: "Changing particles introduces inferred meaning and must be avoided"
+
+  - rule_id: RF-05
+    name: Safe Word Preservation
+    priority: A
+    condition:
+      token_clear: true
+      common_word: true
+      context_consistent: true
+    action:
+      preserve_token: true
+    controller:
+      if_triggered: ALLOW
+    pl:
+      jp: "安全に聞こえる語は削除しない"
+      en: "Clearly heard common words must not be removed"
+
+  - rule_id: RF-06
+    name: Named Entity Safety
+    priority: A
+    condition:
+      named_entity: true
+      certainty: false
+    action:
+      output: kana_or_unintelligible
+    controller:
+      if_triggered: DEFER
+    stop_condition_alias: named_entity_completion_without_certainty
+    pl:
+      jp: "固有名詞は確定できる時だけ確定する"
+      en: "Named entities must only be fixed when certainty is established"
+
+  - rule_id: RF-07
+    name: Contextual Reinforcement Recovery
+    priority: S
+    condition:
+      unclear_token: true
+      same_token_later_clear: true
+      context_match: true
+      same_speaker_or_same_topic: true
+      recovery_based_on_audio_evidence: true
+    action:
+      recover_token: true
+    controller:
+      if_triggered: ALLOW
+    pl:
+      jp: "後続の明確な音声証拠により前方を復元できる"
+      en: "Earlier tokens may be recovered using later confirmed audio evidence"
+
+  - rule_id: RF-08
+    name: Phonetic Exploration Preservation
+    priority: S
+    condition:
+      utterance_type: phonetic_loop
+      repetition: true
+    action:
+      preserve_repetition: true
+    controller:
+      if_triggered: ALLOW
+    pl:
+      jp: "音遊び・発音探索は意味そのものなので削除しない"
+      en: "Phonetic exploration loops must be preserved as meaningful utterances"
+
+  - rule_id: RF-09
+    name: Silence Handling
+    priority: A
+    condition:
+      token: silence
+      semantic_value: false
+    action:
+      delete: true
+    controller:
+      if_triggered: ALLOW
+    pl:
+      jp: "意味のない無音は削除する"
+      en: "Silence without semantic value must be removed"
+
+# =========================
+# PRIORITY ENGINE (JSI)
+# =========================
+
+priority_engine:
+  hierarchy:
+    - S+
+    - S
+    - A
+
+  conflict_resolution:
+
+    - case: inference_vs_audio
+      winner: audio_certainty
+      applied_rule: RF-02
+
+    - case: global_vs_local
+      winner: local_certainty
+      applied_rule: RF-03
+
+    - case: inference_vs_recovery
+      winner: recovery_if_evidence
+      applied_rule: RF-07
+
+    - case: safe_word_vs_uncertainty
+      winner: uncertainty
+      applied_rule: RF-03
+
+    - case: named_entity_vs_completion
+      winner: safety
+      applied_rule: RF-06
+
+# =========================
+# DECISION CONTROLLER
+# =========================
+
+decision_controller:
+
+  STOP:
+    triggers:
+      - unsupported_inference
+      - particle_mutation
+      - named_entity_completion_without_certainty
+    action:
+      - revert_to_unintelligible
+      - block_output
+
+  DEFER:
+    triggers:
+      - high_uncertainty
+      - slot_uncertain
+      - named_entity_uncertain
+    action:
+      - output_unintelligible
+      - preserve_partial
+
+  ALLOW:
+    triggers:
+      - audio_certainty
+      - context_consistency
+      - evidence_based_recovery
+    action:
+      - accept_output
+
+  ALLOW_WITH_UI_ADJUSTMENT:
+    triggers:
+      - non_semantic_overlap
+    action:
+      - separate_segments
+
+# =========================
+# TODAY KEY CASES
+# =========================
+
+today_key_cases:
+
+  - id: contextual_recovery
+    example: "エトチル → 出トチる"
+    applied: RF-07
+    decision: recover
+    evidence: "後続『出トチるわ』"
+    note:
+      jp: "音声証拠による復元"
+      en: "Recovered using later confirmed audio evidence"
+
+  - id: global_local_conflict
+    example: "渋いっすよねー（通し） vs 不確定（スロット）"
+    applied: RF-03
+    decision: partial_unintelligible
+
+  - id: particle_mutation
+    example: "コイツとコイツの → コイツと（unintelligible）"
+    applied: RF-04
+    decision: revert
+
+  - id: phonetic_loop
+    example: "ララレラレレレ"
+    applied: RF-08
+    decision: preserve
+
+  - id: safe_word
+    example: "ママチャリ"
+    applied: RF-05
+    decision: preserve
