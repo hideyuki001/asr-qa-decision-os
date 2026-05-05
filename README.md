@@ -12,6 +12,19 @@ A deterministic system where the same input produces the same judgment outcome.
 
 ---
 
+## 📦 Starter Pack (v0.1)
+
+The full starter pack includes:
+
+- PDF (decision framework)
+- YAML cases (reproducible patterns)
+- structured evaluation logic
+
+👉 Get it here:  
+https://titanium18.gumroad.com/l/ngbnxa
+
+---
+
 ## 🧠 What This System Does
 
 Instead of relying on human intuition, this system enforces:
