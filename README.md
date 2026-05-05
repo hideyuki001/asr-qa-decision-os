@@ -1,5 +1,8 @@
 ASR QA is not annotation — it's a decision system.
 
+👉 Starter Pack v0.1 is now available:  
+https://titanium18.gumroad.com/l/ngbnxa
+
 ASR QA often suffers from inconsistent human judgment and hidden inference.  
 This system eliminates both.
 
